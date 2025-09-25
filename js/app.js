@@ -55,54 +55,54 @@ const selectBoard = (id,name) =>{
 currentBoardId = id
 boardTitle.textContent = `${name}`
 loadTasksForBoard(id)
+loadTasks()
 }
 
 const loadTasksForBoard = (boardId) => {
-    db.collection('tasks').where('boardId', '==', boardId).onSnapshot(snapshot => {
-        pendingTasks.innerHTML = ''
-        doneTask.innerHTML=''
-        snapshot.forEach(doc => {
+  // db.collection('tasks').where('boardId', '==', boardId).onSnapshot(snapshot => {
+  //     pendingTasks.innerHTML = ''
+  //     doneTask.innerHTML=''
+  //     snapshot.forEach(doc => {
 
-            const task = doc.data()
-            const li = document.createElement('li')
-            li.classList = 'list-group-item d-flex justify-content-between align-items-center' 
-            
-            const leftDiv = document.createElement('div')
-            leftDiv.classList = 'd-flex align-items-center'
+  //     const task = doc.data()
+  //     const li = document.createElement('li')
+  //     li.classList = 'list-group-item d-flex justify-content-between align-items-center' 
+      
+  //     const leftDiv = document.createElement('div')
+  //     leftDiv.classList = 'd-flex align-items-center'
 
-            const checkbox = document.createElement('input')
-            checkbox.type = 'checkbox'
-            checkbox.classList = 'form-check-input2 me-2'
-            checkbox.checked = task.done
-            checkbox.onchange = async() => db.collection('tasks').doc(doc.id).update({done:checkbox.checked})
-            
-            const span = document.createElement('span')
-            span.textContent = task.text
-            if(task.done){
-                span.style.textDecoration = 'line-through'
-            }
+  //     const checkbox = document.createElement('input')
+  //     checkbox.type = 'checkbox'
+  //     checkbox.classList = 'form-check-input2 me-2'
+  //     checkbox.checked = task.done
+  //     checkbox.onchange = async() => db.collection('tasks').doc(doc.id).update({done:checkbox.checked})
+      
+  //     const span = document.createElement('span')
+  //     span.textContent = task.text
+  //     if(task.done){
+  //         span.style.textDecoration = 'line-through'
+  //     }
 
-            const delbtn = document.createElement('button')
-            delbtn.classList = 'btn btn-danger btn-sm'
-            delbtn.textContent = 'Delete'
-            delbtn.onclick =  async() =>  await db.collection('tasks').doc(doc.id).delete()
-            leftDiv.appendChild(span)
+  //     const delbtn = document.createElement('button')
+  //     delbtn.classList = 'btn btn-danger btn-sm'
+  //     delbtn.textContent = 'Delete'
+  //     delbtn.onclick =  async() =>  await db.collection('tasks').doc(doc.id).delete()
+  //     leftDiv.appendChild(span)
 
-            leftDiv.appendChild(checkbox)
+  //     leftDiv.appendChild(checkbox)
 
-            li.appendChild(delbtn)
-            li.appendChild(leftDiv)
+  //     li.appendChild(delbtn)
+  //     li.appendChild(leftDiv)
 
 
-            if (task.done){
-                doneTask.appendChild(li)
+  //     if (task.done){
+  //         doneTask.appendChild(li)
 
-            }else{
-                pendingTasks.appendChild(li)
-            }
-
-        })
-    })
+  //     }else{
+  //         pendingTasks.appendChild(li)
+  //     }
+  // })
+  // })
 }
 
 addTaskbtn.addEventListener('click', async () => {
@@ -110,10 +110,60 @@ console.log('Button clicked')
 const text = taskInput.value.trim()
 if (text && currentBoardId) {
     await db.collection('tasks').add({ text, done: false, boardId: currentBoardId })
+    taskInput.value = ''
 }
-taskInput.value = ''
+else {
+  alert('Por favor, selecciona el tablero y escribe una tarea.')
+}
 })
 
-//este wey saca los proyectos de una IA o algo
+const loadTasks = () => {
+  db.collection("tasks").where('boardId', '==', currentBoardId)
+  .onSnapshot((tasks) => {
+  pendingTasks.innerHTML = ''
+  doneTask.innerHTML = ''
+  tasks.forEach((doc) => {
+    const task = doc.data()
+    const li = document.createElement('li')
+    li.classList = 'list-group-item d-flex justify-content-between align-items-center' 
+    
+    const leftDiv = document.createElement('div')
+    leftDiv.classList = 'd-flex align-items-center'
 
-// Las tareas ahora se cargan solo cuando se selecciona un tablero
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.classList = 'form-check-input2 me-2'
+    checkbox.checked = task.done
+    checkbox.onchange = async() => db.collection('tasks').doc(doc.id).update({done:checkbox.checked})
+    
+    const span = document.createElement('span')
+    span.textContent = task.text
+    if(task.done){
+        span.style.textDecoration = 'line-through'
+    }
+
+    const delbtn = document.createElement('button')
+    delbtn.classList = 'btn btn-danger btn-sm'
+    delbtn.textContent = 'Delete'
+    delbtn.onclick =  async() =>  await db.collection('tasks').doc(doc.id).delete()
+    
+    leftDiv.appendChild(checkbox)
+    leftDiv.appendChild(span)
+
+    li.appendChild(leftDiv)
+    li.appendChild(delbtn)
+
+
+    if (task.done){
+        doneTask.appendChild(li)
+
+    }else{
+        pendingTasks.appendChild(li)
+    }
+
+  })
+  })
+}
+
+
+// parametro y argumento
