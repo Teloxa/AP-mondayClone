@@ -18,6 +18,11 @@ const addTaskbtn = document.getElementById('addTaskButton');
 const pendingTasks = document.getElementById('pendingTasks');
 const doneTask = document.getElementById('doneTask');
 
+// Elementos nuevos
+const assignedInput = document.getElementById('assignedInput')
+const statusInput = document.getElementById('statusInput')
+const priorityProject = document.getElementById('priorityProject')
+
 // Referencias a los tableros
 const boardTitle = document.getElementById('boardTitle')
 const boardList = document.getElementById('boardList');
@@ -93,68 +98,154 @@ boardList.appendChild(li);
 });
 
 const selectBoard = (id, name) => {
-currentBoardId = id;
-boardTitle.textContent = `${name}`;
-loadTasks();
+  currentBoardId = id;
+  boardTitle.textContent = `${name}`;
+  enableTaskForm()
+  loadTasks();
 };
+
+// Funcion para habilitar input del formulario para tareas
+const enableTaskForm = () => {
+  taskInput.disabled = false
+  assignedInput.disabled = false
+  priorityProject.disabled  = false 
+  addTaskbtn.disabled = false
+  statusInput.disabled = false
+}
+
+// Funcion para deshabilitar input del formulario para tareas
+const disableTaskForm = () => {
+  taskInput.disabled = true
+  assignedInput.disabled = true
+  priorityProject.disabled  = true 
+  addTaskbtn.disabled = true
+  statusInput.disabled = true
+}
+
+// helpers para color de prioridad y status 
+const getStatusColor = status => {
+  switch(status) {
+    case 'Pendiente': return 'secondary'
+    case 'En progreso': return 'info'
+    case 'Bloqueado': return 'warning'
+    case 'Hecho': return 'success'
+    default: return 'dark'
+  }
+}
+
+const getPriorityColor = priority => {
+  switch(priority) {
+    case 'Alta': return 'danger'
+    case 'Media': return 'primary'
+    case 'Baja': return 'success'
+    default: return 'secondary'
+  }
+}
 
 // Agregar tarea
 addTaskbtn.addEventListener('click', async () => {
-const text = taskInput.value.trim();
-if (text && currentBoardId) {
-await db.collection('tasks').add({ text, done: false, boardId: currentBoardId });
-taskInput.value = '';
-} else {
-alert('Selecciona un tablero y escribe la tarea');
+  const text = taskInput.value.trim();
+  const assigned = assignedInput.value.trim()
+  const status = statusInput.value
+  const priority = priorityProject.value
+
+
+  if (text && assigned && currentBoardId && currentUser) {
+    await db.collection('tasks').add({ text, assigned,status, priority, done: status === 'Hecho', boardId: currentBoardId, userId: currentUser.uId });
+    taskInput.value = '';
+    assignedInput.value = ''
+    statusInput.value = 'Pendiente'
+    priorityInput.value = 'Media'
+    } else {
+    alert('Selecciona un tablero y escribe la tarea');
 }
 });
 
 // Cargar tareas
 const loadTasks = () => {
-if (!currentBoardId) return;
+  
+  db.collection('tasks')
+    .where('boardId', '===', currentBoardId)
+    .where('userId', '===', currentUser.uId)
+    .onSnapshot(snapshot=> {
+      document.querySelectorAll('.kanban-col').forEach(col => col.innerHTML = '')
+      snapshot.forEach((doc) => {
+        const task = doc.data()
+        const card = document.createElement('div')
+        card.className = 'card p-2 kanban-taks'
+        card.draggable = true
+        card.dataset.id = doc.id
+        card.innerHTML = 
+      ` 
+        <strong>${task.text}</strong>
+        <small>🕴️${task.assigned}</small>
+        <span class="badge bg-${getStatusColor(task.status)}"> ${task.status}</span>
+        <span class="badge bg-${getPriorityColor(task.priority)}"> ${task.priority}</span>
+        <button class="btn btn-sm btn-danger">🗑️</button>
+      `
 
-db.collection("tasks").where('boardId', '==', currentBoardId)
+      // drag events
+      card.addEventListener('dragstart', e => {
+        e.preventDefault()
+        e.dataTransfer.setData('taskId', doc.id)
+      })
+      card.querySelector('button').onclick = () => db.collection('tasks').doc(doc.id).delete()
+
+      const col = document.querySelector(`.kanban-col[data-status="${task.status}"]`)
+      if(col){
+        col.appendChild(card)
+      } else {
+
+      }
+
+
+      })  
+    })
+
+// Actualizar el estado de tareas
+
+const updateTaskStatus = (taskId, newStatus) => {
+  db.collection('tasks').doc(taskId).update({
+    status: newStatus,
+    done: newStatus === 'Hecho'
+  })
+}
+
+
+    // db.collection("tasks").where('boardId', '==', currentBoardId)
 .onSnapshot((tasks) => {
-    pendingTasks.innerHTML = '';
-    doneTask.innerHTML = '';
+  pendingTasks.innerHTML = '';
+  doneTask.innerHTML = '';
 
-    tasks.forEach((doc) => {
-        const task = doc.data();
-        const li = document.createElement('li');
-        li.classList = 'list-group-item d-flex justify-content-between align-items-center';
+  tasks.forEach((doc) => {
+      const task = doc.data();
+      const li = document.createElement('li');
+      li.className = 'list-group-item'
+      // card de las tareas
+      li.innerHTML = 
+      ` <div class="d-flex justify-content-between aligns-items-center">
+          <div>
+            <strong>${task.text}</strong>
+            <small>🕴️${task.assigned}</small>
+            <span class="badge bg-${getStatusColor(task.status)}"> ${task.status}</span>
+            <span class="badge bg-${getPriorityColor(task.priority)}"> ${task.priority}</span>
+          </div>
+          <div>
+            <button class="btn btn-sm btn-danger">🗑️</button>
+          </div>
+        </div>      
+      `
+    li.querySelector('button').onclick = () => db.collection('tasks').doc(doc.id).delete()
 
-        const leftDiv = document.createElement('div');
-        leftDiv.classList = 'd-flex align-items-center';
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.classList = 'form-check-input2 me-2';
-        checkbox.checked = task.done;
-        checkbox.onchange = async () => db.collection('tasks').doc(doc.id).update({ done: checkbox.checked });
 
-        const span = document.createElement('span');
-        span.textContent = task.text;
-        if (task.done) {
-            span.style.textDecoration = 'line-through';
-        }
+      if (task.done) {
+          doneTask.appendChild(li);
+      } else {
+          pendingTasks.appendChild(li);
+      }
+  });
 
-        const delbtn = document.createElement('button');
-        delbtn.classList = 'btn btn-danger btn-sm';
-        delbtn.textContent = 'Delete';
-        delbtn.onclick = async () => await db.collection('tasks').doc(doc.id).delete();
-
-        leftDiv.appendChild(checkbox);
-        leftDiv.appendChild(span);
-
-        li.appendChild(leftDiv);
-        li.appendChild(delbtn);
-
-        if (task.done) {
-            doneTask.appendChild(li);
-        } else {
-            pendingTasks.appendChild(li);
-        }
-    });
 });
 };
 
