@@ -18,14 +18,14 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   const doneTask = document.getElementById('doneTask');
 
   //Elementos nuevos
-
   const assingedInput= document.getElementById('assignedInput')
   const statusInput = document.getElementById('statusInput')
   const priorityInput = document.getElementById('priorityInput')
   const kanbanBoard = document.getElementById('kanbanBoard')
+  const boardTabs = document.getElementById('boardTabs')
 
   // Referencias a los tableros
-  const boardTitle = document.getElementById('boardTitle')
+  // const boardTitle = document.getElementById('boardTitle')
   const boardList = document.getElementById('boardList');
   const boardInput = document.getElementById('boardInput');
   const boardBtn = document.getElementById('addBoardBtn');
@@ -38,6 +38,9 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   // Variable Global para el id del tablero actual
   let currentBoardId = null;
   let currentUser = null;
+  let listeners = {}
+  
+  // Estados disponibles de las tareas
   let STATUSES = ['Pendiente','En progreso','Bloqueado','Hecho']
   
   // Funciones Login / Logout con Google
@@ -50,6 +53,7 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   await auth.signOut();
   });
   
+  // Evento que escucha cuando cambia la autenticacion
   auth.onAuthStateChanged(user => {
   const navbarText = document.querySelector('.navbar-text');
   
@@ -63,6 +67,7 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   taskInput.disabled = false;
   addTaskbtn.disabled = false;
   mostrarTableros()
+  
   //loadTasks();
   } else {
   currentUser = null;
@@ -72,7 +77,7 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   boardInput.disabled = true;
   boardBtn.disabled = true;
   boardList.innerHTML = '';
-  boardTitle.textContent = 'Inicia sesión para ver tus tableros';
+  // boardTitle.textContent = 'Inicia sesión para ver tus tableros';
   taskInput.disabled = true;
   addTaskbtn.disabled = true;
   doneTask.innerHTML = '';
@@ -88,6 +93,7 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
   }
   });
   
+  // Mostrar tableros
 
   const mostrarTableros = ()=>{
       db.collection('boards').where('userId', '==',currentUser.uid).onSnapshot((tableros) => {
@@ -99,23 +105,69 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
           li.classList = 'list-group-item list-group-item-action';
           li.textContent = board.name;
           
-          li.onclick = () => selectBoard(doc.id, board.name);
+          li.onclick = () => openBoard(doc.id, board.name);
+          // li.onclick = () => selectBoard(doc.id, board.name);
           boardList.appendChild(li);
           });
           });
   }
 
-  // Mostrar tableros
-  
+  // Abrir la pestania del tablero 
+  const openBoard = (id,name) => {
+    currentBoardId = id
+    if(!document.getElementById(`tab-${id}`)){
+        const li = document.createElement('li')
+        li.className = 'nav-item'
+        li.innerHTML = 
+        `
+        <button class="nav-link" id="tab-${id}" data-id="${id}">
+        ${name}❌
+        </button>
+        `
+        boardTabs.appendChild(li)
+
+        li.querySelector('button').addEventListener('click', (e) => {
+          if(e.offsetX > e.target.offsetWidth - 20) {
+            // Cerrar tab (click en la X)
+            li.remove()
+            if(listeners[id]) {
+              listeners[id]()
+            }
+            if(boardTabs.children.length > 0) {
+              const nextTab = boardTabs.children[0].querySelector('button')
+              openBoard(nextTab.dataset.id, nextTab.textContent.replace("❌", ""))
+            } else {
+              resetKanban()
+            }
+          } else {
+            // Activar tab (click en el nombre)
+            setActiveTab(id)
+          }
+        })
+      }
+      setActiveTab(id)  //CHUY
+    }
+
+  // Activar pestania CHUY
+
+  const setActiveTab = id => {
+    document.querySelectorAll('#boardTabs .nav-link').forEach((btn) => btn.classList.remove('active'))
+    document.getElementById(`tab-${id}`).classList.add('active')
+    currentBoardId = id
+    enableTaskForm() 
+    renderKanban()
+    loadTasks(id)
+  }
+
   
 
   //Seleccionar Tablero
   const selectBoard = (id, name) => {
       currentBoardId = id;
-      boardTitle.textContent = `${name}`;
+      // boardTitle.textContent = `${name}`;
       enableTaskForm()
       renderKanban()
-      loadTasks();
+      loadTasks(id);
   };
   //funcion para enable los forms de tareas
   const enableTaskForm = () =>{
@@ -183,10 +235,15 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
 
 
   // Cargar tareas
-  const loadTasks = () => {
+  const loadTasks = (boardId) => {
   if (!currentBoardId) return;
 
-  db.collection('tasks').where('boardId', '==', currentBoardId)
+  // Limpiar listener anterior si existe
+  if(listeners[boardId]){
+    listeners[boardId]()
+  }
+
+  listeners[boardId] = db.collection('tasks').where('boardId', '==', currentBoardId)
   .where('userId', '==', currentUser.uid)
   .onSnapshot(snapshot => {
 
@@ -271,4 +328,12 @@ appId: "1:788816899111:web:6b4d9f7dedc21d7d08f202"
           })
       })
   }
-// parametro y argumento
+
+  const resetKanban = () => {
+    kanbanBoard.innerHTML = 
+    `
+      <p class="text-center mb-4 text-muted">Seleccion un tablero para comenzar</p> 
+
+    `
+  }
+  // parametro y argumento

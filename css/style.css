@@ -15,3 +15,8 @@
   background-color: #E0F7FA;
   border-color: #007bff;
 }
+
+.nav-tabs .nav-link.active {
+  background-color: #0D63FD !important;
+  color: white !important;
+}
